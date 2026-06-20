@@ -346,21 +346,42 @@
         "FILL_IN_THE_BLANK_FOR_PROGRAMMING",
     ];
 
+    async function doSave() {
+        // 尝试多种保存按钮
+        const tries = [
+            () => document.querySelector('button[data-e2e="problem-set-bottom-submit-btn"]'),
+            () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('保存')),
+            () => Array.from(document.querySelectorAll('button')).find(b => b.textContent.includes('提交本题作答')),
+        ];
+        for (const fn of tries) {
+            try {
+                const btn = fn();
+                if (btn && btn.offsetParent) {
+                    btn.click();
+                    status("💾 保存中...");
+                    await wait(2000); // PTA 保存需要时间
+                    return true;
+                }
+            } catch (_) { }
+        }
+        return false;
+    }
+
     async function nextTab() {
-        const saveBtn = document.querySelector('button[data-e2e="problem-set-bottom-submit-btn"]');
-        if (saveBtn) { saveBtn.click(); await wait(600); }
+        await doSave();
 
         const cur = document.querySelector("a.active-anchor, a.active");
-        if (!cur) return "end";
+        if (!cur) { status("无活跃 Tab"); return "end"; }
         const idx = TAB_ORDER.indexOf(cur.id);
-        if (idx < 0 || idx >= TAB_ORDER.length - 1) return "end";
+        if (idx < 0) { status(`未知 Tab: ${cur.id}`); return "end"; }
+        if (idx >= TAB_ORDER.length - 1) return "end";
 
         for (let i = idx + 1; i < TAB_ORDER.length; i++) {
             const nxt = document.getElementById(TAB_ORDER[i]);
             if (nxt && nxt.offsetParent) {
-                status(`▶ ${nxt.textContent.trim().split("\n")[0]}`);
+                status(`▶ 切换到: ${nxt.textContent.trim().split("\n")[0]}`);
                 nxt.click();
-                await wait(2000);
+                await wait(2500); // 等页面渲染
                 return "ok";
             }
         }
