@@ -437,17 +437,32 @@
     }
 
     // ============================================================
+    // 暂停等待
+    // ============================================================
+    async function waitForResume() {
+        updateStopBtn("▶ 继续");
+        status("⏸ 已暂停");
+        while (_halt && _active) await wait(300);
+        if (_active) {
+            updateStopBtn("⏸ 暂停");
+            status("▶ 继续中...");
+        }
+    }
+
+    // ============================================================
     // 全流程
     // ============================================================
     async function runAll() {
+        // 已有任务在跑 → 忽略重复点击
         if (_active) return;
         if (!store.apiKey) { notify("先设 API Key", 2); return; }
 
         _active = true; _halt = false; _total = 0; _pass = 0; _fail = 0;
         toggleBtn(true);
+        updateStopBtn("⏸ 暂停");
         status("运行中...");
 
-        while (!_halt) {
+        while (_active) {
             const items = gatherQuestions();
             if (!items.length) {
                 const nx = await nextTab();
@@ -460,7 +475,10 @@
             status(`${t} × ${items.length}`);
 
             for (let i = 0; i < items.length; i++) {
-                if (_halt) break;
+                // 暂停检测：卡在这里轮询直到用户点继续
+                if (_halt) await waitForResume();
+                if (!_active) break;
+
                 _total++;
                 const q = items[i];
                 preview(q.stem, q.qtype, "");
@@ -479,19 +497,26 @@
                 await wait(800 + Math.random() * 600);
             }
 
-            if (_halt) break;
+            if (!_active) break;
+            if (_halt) await waitForResume();
+            if (!_active) break;
+
             const nx = await nextTab();
             if (nx === "end") break;
             await wait(2000);
         }
 
-        _active = false;
+        _active = false; _halt = false;
         toggleBtn(false);
+        updateStopBtn("⏸ 暂停");
         status("完成");
         notify(`${_pass}/${_total}`, _pass === _total ? 0 : 1);
     }
 
-    function stop() { _halt = true; status("停止..."); }
+    function togglePause() {
+        if (!_active) return;
+        _halt = !_halt;
+    }
 
     // ============================================================
     // 迷你 UI
@@ -590,7 +615,7 @@
             store.auto = this.checked ? "1" : "0";
         };
         _panel.querySelector("#p3go").onclick = runAll;
-        _panel.querySelector("#p3stop").onclick = stop;
+        _panel.querySelector("#p3stop").onclick = togglePause;
         _panel.querySelector("#p3once").onclick = async () => {
             if (!store.apiKey) { notify("先设 API Key", 2); return; }
             const r = await oneQ();
@@ -626,6 +651,10 @@
         ["p3go", "p3once"].forEach(id => { const e = document.getElementById(id); if (e) e.disabled = on; });
         const st = document.getElementById("p3stop");
         if (st) st.disabled = !on;
+    }
+    function updateStopBtn(label) {
+        const st = document.getElementById("p3stop");
+        if (st) st.textContent = label;
     }
     function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
     function esc(s) { return String(s).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
