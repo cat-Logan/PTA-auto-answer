@@ -530,7 +530,7 @@
         _panel.innerHTML = `
         <div id="p3bar">
           <b>PTA</b>
-          <span id="p3ver">v3</span>
+          <span id="p3ver">v1</span>
           <button id="p3fold">_</button>
         </div>
         <div id="p3gut">
