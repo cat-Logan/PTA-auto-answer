@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PTA Auto Answer
 // @namespace    github.com/cat-Logan
-// @version      1.0.1
+// @version      1.0.2
 // @description  极简 PTA 自动答题 — DeepSeek AI 驱动，支持判断/单选/多选/填空 | v1.0.1 修复多题型切换保存失败
 // @author       cat-Logan
 // @license      MIT
