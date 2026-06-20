@@ -148,15 +148,21 @@
             const opts = [];
             const omap = {};
 
+            let fallbackIdx = 0;
             labels.forEach(lbl => {
                 const sp = lbl.querySelector("span");
                 const mark = sp ? sp.textContent.trim() : "";
                 const body = lbl.textContent.trim().replace(mark, "").trim();
-                const ch = (mark.match(/[A-D]/i) || [])[0];
-                if (ch) {
+                let ch = (mark.match(/[A-Da-d]/i) || [])[0];
+                // 判断题等没有字母标记 → 按顺序分配 A/B/C/D
+                if (!ch && body) {
+                    ch = String.fromCharCode(65 + fallbackIdx);
+                }
+                if (ch && body) {
                     const c = ch.toUpperCase();
                     opts.push(`${c}. ${body}`);
                     omap[c] = { el: lbl, txt: body, inp: lbl.querySelector("input") };
+                    fallbackIdx++;
                 }
             });
             opts.sort((a, b) => a.localeCompare(b));
@@ -192,11 +198,29 @@
         return ok;
     }
 
-    function tapJudge(ans, omap) {
-        const yes = /正确|对|√|^T$|True|是/i.test(ans.trim());
-        const pat = yes ? /正确|[对√]|True|^T$/i : /错误|[错×]|False|^F$/i;
+    function tapJudge(ans, omap, blk) {
+        const yes = /正确|对|√|^T$|True|是|YES/i.test(ans.trim());
+        const pat = yes ? /正确|[对√]|True|是|^T$/i : /错误|[错×]|False|否|^F$/i;
+
+        // 1) 先走 omap（有字母标记的选项）
         for (const [k, v] of Object.entries(omap)) {
             if (pat.test(v.txt)) return tapOption(k, omap);
+        }
+
+        // 2) 兜底：直接在题目 block 里找匹配的 label
+        const labels = (blk || document).querySelectorAll("label");
+        for (const lbl of labels) {
+            const t = lbl.textContent.trim().toUpperCase();
+            if (yes && /正确|[对√]|TRUE|是|YES|^T$/.test(t)) {
+                lbl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                lbl.click();
+                return true;
+            }
+            if (!yes && /错误|[错×]|FALSE|否|NO|^F$/.test(t)) {
+                lbl.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+                lbl.click();
+                return true;
+            }
         }
         return false;
     }
@@ -246,7 +270,7 @@
     function applyAnswer(ans, q) {
         if (q.qtype === "single") return tapOption(ans.trim(), q.omap);
         if (q.qtype === "multi") return tapMulti(ans, q.omap);
-        if (q.qtype === "judge") return tapJudge(ans, q.omap);
+        if (q.qtype === "judge") return tapJudge(ans, q.omap, q.block);
         if (q.qtype === "fill" || q.qtype === "fill_prog") return fillGap(ans, q.block);
         // fallback
         if (Object.keys(q.omap).length >= 2) {
